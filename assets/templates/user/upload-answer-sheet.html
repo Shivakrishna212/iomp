@@ -1,0 +1,154 @@
+{% extends 'user/user-base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Upload Answer Sheets</h3>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                    <div class="messages">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">
+                            {{ message }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <form method="POST" action="" enctype="multipart/form-data" id="uploadForm">
+                        {% csrf_token %}
+                        
+                        <div class="form-group mb-3">
+                            <label for="subject">Select Subject:</label>
+                            <select class="form-control" id="subject" name="subject" required>
+                                <option value="">Select a subject</option>
+                                {% for subject in subjects %}
+                                <option value="{{ subject.subject }}">{{ subject.subject }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div id="questionsContainer">
+                            <!-- Questions will be loaded here -->
+                        </div>
+
+                        <div class="text-center mt-4">
+                            <button type="submit" class="btn btn-primary" id="submitBtn">Submit All Answers</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Get CSRF token from cookie
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+document.getElementById('subject').addEventListener('change', function() {
+    const subject = this.value;
+    const container = document.getElementById('questionsContainer');
+    
+    if (subject) {
+        container.innerHTML = '<div class="text-center"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+        
+        // Get CSRF token
+        const csrftoken = getCookie('csrftoken');
+        
+        // Fetch questions for selected subject
+        fetch(`/get-questions-by-subject/${encodeURIComponent(subject)}/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(data => {
+                    throw new Error(data.error || `HTTP error! status: ${response.status}`);
+                });
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Received data:', data);
+            
+            if (data.error) {
+                container.innerHTML = `<div class="alert alert-danger">${data.error}</div>`;
+                if (data.details) {
+                    console.error('Error details:', data.details);
+                }
+                return;
+            }
+            
+            if (!data.questions || data.questions.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">No questions found for this subject</div>';
+                return;
+            }
+            
+            let html = '';
+            data.questions.forEach((question, index) => {
+                html += `
+                    <div class="card mb-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">Question ${index + 1}</h5>
+                        </div>
+                        <div class="card-body">
+                            <p class="card-text">${question.question}</p>
+                            <div class="form-group">
+                                <label for="answer_sheet_${question.question_id}">Upload Answer Sheet:</label>
+                                <input type="file" class="form-control" id="answer_sheet_${question.question_id}" 
+                                       name="answer_sheet_${question.question_id}" accept="image/*,.pdf" required>
+                                <small class="form-text text-muted">Supported formats: JPG, PNG, PDF</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            container.innerHTML = `<div class="alert alert-danger">Error loading questions: ${error.message}</div>`;
+        });
+    } else {
+        container.innerHTML = '';
+    }
+});
+
+// Handle form submission
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Processing...';
+    
+    // Submit the form
+    this.submit();
+});
+</script>
+{% endblock %} 

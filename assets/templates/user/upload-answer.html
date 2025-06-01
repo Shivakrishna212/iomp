@@ -1,0 +1,123 @@
+{% extends 'user/user-base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Upload Answer</h3>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                    <div class="messages">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }}">
+                            {{ message }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                    
+                    <form method="POST" action="">
+                        {% csrf_token %}
+                        
+                        <div class="form-group mb-3">
+                            <label for="subject">Select Subject:</label>
+                            <select class="form-control" id="subject" name="subject" required>
+                                <option value="">Select a subject</option>
+                                {% for subject in subjects %}
+                                <option value="{{ subject.subject }}" {% if subject.subject == selected_subject %}selected{% endif %}>{{ subject.subject }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="question">Select Question:</label>
+                            <select class="form-control" id="question" name="question" required>
+                                <option value="">First select a subject</option>
+                                {% if selected_question %}
+                                <option value="{{ selected_question.question_id }}" selected>{{ selected_question.question }}</option>
+                                {% endif %}
+                            </select>
+                        </div>
+
+                        <div class="form-group mb-3">
+                            <label for="answer_text">Your Answer:</label>
+                            <textarea class="form-control" id="answer_text" name="answer_text" rows="6" required>{% if answer_text %}{{ answer_text }}{% endif %}</textarea>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" class="btn btn-primary">Submit Answer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Get CSRF token from cookie
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+document.getElementById('subject').addEventListener('change', function() {
+    const subject = this.value;
+    const questionSelect = document.getElementById('question');
+    
+    if (subject) {
+        // Clear current options
+        questionSelect.innerHTML = '<option value="">Loading questions...</option>';
+        
+        // Get CSRF token
+        const csrftoken = getCookie('csrftoken');
+        
+        // Fetch questions for selected subject
+        fetch(`/get-questions-by-subject/${subject}/`, {
+            method: 'GET',
+            headers: {
+                'X-CSRFToken': csrftoken,
+                'Content-Type': 'application/json',
+            },
+            credentials: 'same-origin'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error:', data.error);
+                questionSelect.innerHTML = '<option value="">Error loading questions</option>';
+                return;
+            }
+            
+            questionSelect.innerHTML = '<option value="">Select a question</option>';
+            data.questions.forEach(question => {
+                const option = document.createElement('option');
+                option.value = question.question_id;
+                option.textContent = question.question;
+                questionSelect.appendChild(option);
+            });
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            questionSelect.innerHTML = '<option value="">Error loading questions</option>';
+        });
+    } else {
+        questionSelect.innerHTML = '<option value="">First select a subject</option>';
+    }
+});
+</script>
+{% endblock %} 

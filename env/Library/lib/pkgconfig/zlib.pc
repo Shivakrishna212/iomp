@@ -1,0 +1,13 @@
+prefix=D:/pythonnnn projects/answer_evaluation/env/Library
+exec_prefix=D:/pythonnnn projects/answer_evaluation/env/Library
+libdir=D:/pythonnnn projects/answer_evaluation/env/Library/lib
+sharedlibdir=D:/pythonnnn projects/answer_evaluation/env/Library/lib
+includedir=D:/pythonnnn projects/answer_evaluation/env/Library/include
+
+Name: zlib
+Description: zlib compression library
+Version: 1.2.13
+
+Requires:
+Libs: -L${libdir} -L${sharedlibdir} -lz
+Cflags: -I${includedir}
